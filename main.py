@@ -27,6 +27,11 @@ def task_making():
         try:
             einddatum_tekst = input("Geef de einddatum op (dd-mm-jjjj): ")
             einddatum = datetime.datetime.strptime(einddatum_tekst, "%d-%m-%Y")
+
+            if einddatum < datetime.datetime.strptime(startdatum, "%Y-%m-%d"):
+                print("De einddatum mag niet vóór de startdatum liggen. Probeer opnieuw.\n")
+                continue
+
             einddatum = einddatum.strftime("%Y-%m-%d")
             break
         except ValueError:
