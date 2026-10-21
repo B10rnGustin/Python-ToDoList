@@ -1,15 +1,5 @@
-import sqlite3
+import database
 import datetime
-
-connection = sqlite3.connect("tasks.db")
-
-cursor = connection.cursor()
-
-command1 = """CREATE TABLE IF NOT EXISTS
-tasks(Id INTEGER PRIMARY KEY, Titel TEXT, Aanmaakdatum TEXT, Startdatum TEXT, Einddatum TEXT, Status TEXT, Opmerking TEXT)"""
-
-cursor.execute(command1)
-connection.commit()
 
 def task_making():
     titel = input("Geef een titel op: ")
@@ -41,17 +31,21 @@ def task_making():
     opmerking = input("Opmerking voor bij de taak:\n")
 
     sql_opdracht = """
-    INSERT INTO tasks (Titel, Aanmaakdatum, Startdatum, Einddatum, Status, Opmerking)
+    INSERT INTO tasks (
+    Titel, 
+    Aanmaakdatum, 
+    Startdatum, 
+    Einddatum, 
+    Status, 
+    Opmerking)
     VALUES (?, ?, ?, ?, ?, ?)
     """
-    cursor.execute(sql_opdracht, (titel, aanmaakdatum, startdatum, einddatum, status, opmerking))
-    connection.commit()
+    database.cursor.execute(sql_opdracht, (titel, aanmaakdatum, startdatum, einddatum, status, opmerking))
+    database.connection.commit()
     print("Taak goed opgeslagen.\n ")
 
 def task_viewing():
-    sql_opdracht = "SELECT * FROM tasks"
-    cursor.execute(sql_opdracht)
-    tasks = cursor.fetchall()
+    tasks = database.get_all_tasks()
 
     if not tasks:
         print("Er zijn geen opgeslagen taken. \n")
@@ -72,11 +66,9 @@ def task_viewing():
 
 def task_editing():
 
-    task_ID = int(input("Welke taak wil je wijzigen? "))
+    task_id = int(input("Welke taak wil je wijzigen? "))
 
-    sql_opdracht = "SELECT * FROM tasks WHERE Id = ?"
-    cursor.execute(sql_opdracht, (task_ID,))
-    task = cursor.fetchone()
+    task = database.get_task_by_id(task_id)
 
     if task is None:
         print("Er bestaat geen taak met dit ID.")
@@ -85,7 +77,7 @@ def task_editing():
     print("\nHuidige titel:", task[1])
     print("Huidige status:", task[5])
     print("Einddatum:", task[4])
-    print("Opmerking: " )
+    print("Opmerking:")
     print(task[6] or "", "\n")
 
     print("1. Titel wijzigen")
@@ -101,39 +93,43 @@ def task_editing():
 
     if editing_choice == 1:
         new_titel = input("Voer de nieuwe titel in: ")
-        sql_opdracht = "UPDATE tasks SET Titel = ? WHERE Id = ?"
-        cursor.execute(sql_opdracht, (new_titel, task_ID))
-        connection.commit()
+        database.update_task_title(task_id, new_titel)
 
         print("Titel succesvol gewijzigd.\n")
 
     elif editing_choice == 2:
         geldige_statussen = ["Active", "Started", "In progress", "On Hold", "Done"]
+
         while True:
-            new_status = input("Wat wordt de nieuwe status? (Active, Started, In progress, On Hold, Done)")
+            new_status = input(
+                "Wat wordt de nieuwe status? "
+                "(Active, Started, In progress, On Hold, Done): "
+            )
+
             if new_status in geldige_statussen:
                 break
+
             print("Ongeldige status. Kies een status uit de lijst.\n")
 
-        sql_opdracht = "UPDATE tasks SET Status = ? WHERE Id = ?"
-        cursor.execute(sql_opdracht, (new_status, task_ID))
-        connection.commit()
+        database.update_task_status(task_id, new_status)
 
         print("Status succesvol gewijzigd.\n")
 
     elif editing_choice == 3:
         while True:
             try:
-                new_einddatum = input("Voer de nieuwe Einddatum in dd-mm-jjjj: ")
-                new_einddatum = datetime.datetime.strptime(new_einddatum, "%d-%m-%Y")
+                new_einddatum = input(
+                    "Voer de nieuwe einddatum in (dd-mm-jjjj): "
+                )
+                new_einddatum = datetime.datetime.strptime(
+                    new_einddatum, "%d-%m-%Y"
+                )
                 new_einddatum = new_einddatum.strftime("%Y-%m-%d")
                 break
             except ValueError:
-                print("Voer eem juiste datum in. ")
+                print("Voer een geldige datum in.\n")
 
-        sql_opdracht = "UPDATE tasks SET Einddatum = ? WHERE Id = ?"
-        cursor.execute(sql_opdracht, (new_einddatum, task_ID))
-        connection.commit()
+        database.update_task_einddatum(task_id, new_einddatum)
 
         print("Einddatum succesvol gewijzigd.\n")
 
@@ -146,41 +142,40 @@ def task_editing():
 
         try:
             note_choice = int(input("Maak een keuze: "))
-
         except ValueError:
             print("Verkeerde invoer. Voer een getal in.\n")
             return
 
         if note_choice == 1:
-            nieuwe_opmerking = input("Voer de nieuwe opmerking in:\n ")
-
-            sql_opdracht = """UPDATE tasks SET Opmerking = ? WHERE Id = ? """
-            cursor.execute(sql_opdracht, (nieuwe_opmerking, task_ID))
-            connection.commit()
+            nieuwe_opmerking = input("Voer de nieuwe opmerking in:\n")
+            database.replace_remark(task_id, nieuwe_opmerking)
 
             print("Opmerking succesvol vervangen.\n")
 
         elif note_choice == 2:
             extra_opmerking = input("Welke tekst wil je toevoegen? ")
 
-            if huidige_opmerking:
-                nieuwe_opmerking = huidige_opmerking + "\n" + extra_opmerking
-            else:
-                nieuwe_opmerking = extra_opmerking
+            gelukt = database.add_remark(task_id, extra_opmerking)
 
-            sql_opdracht = """ UPDATE tasks SET Opmerking = ? WHERE Id = ? """
-            cursor.execute(sql_opdracht, (nieuwe_opmerking, task_ID))
-            connection.commit()
+            if gelukt:
+                print("Opmerking succesvol aangevuld.\n")
+            else:
+                print("Er bestaat geen taak met dit ID.\n")
+
+            database.add_remark(task_id, extra_opmerking)
 
             print("Opmerking succesvol aangevuld.\n")
 
         elif note_choice == 3:
-            sql_opdracht = """ UPDATE tasks SET Opmerking = '' WHERE Id = ? """
-            cursor.execute(sql_opdracht, (task_ID,))
-            connection.commit()
+            database.remove_remark(task_id)
+
             print("Opmerking succesvol verwijderd.\n")
+
         else:
             print("Ongeldige keuze. Kies een getal tussen 1 en 3.\n")
+
+    else:
+        print("Ongeldige keuze. Kies een getal tussen 1 en 4.\n")
 
 def task_deleting():
     while True:
@@ -190,11 +185,9 @@ def task_deleting():
         except ValueError:
             print("Ongeldige invoer. Voer een numeriek taak-ID in.\n")
 
-    sql_opdracht = "DELETE FROM tasks WHERE Id = ?"
-    cursor.execute(sql_opdracht, (task_ID,))
-    connection.commit()
+    database.delete_task(task_ID)
 
-    if cursor.rowcount > 0:
+    if database.cursor.rowcount > 0:
         print("Taak succesvol verwijderd.\n")
     else:
         print("Er bestaat geen taak met dit ID.\n")
@@ -224,4 +217,4 @@ while True:
     except ValueError:
         print("Voer een getal tussen de 1 en 5 in.\n")
 
-connection.close()
+database.connection.close()
