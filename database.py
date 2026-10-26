@@ -20,9 +20,14 @@ cursor.execute(command1)
 connection.commit()
 
 def get_all_tasks():
-    sql_opdracht = "SELECT * FROM tasks"
-    cursor.execute(sql_opdracht)
-    return cursor.fetchall()
+    def get_all_tasks():
+        sql_opdracht = """
+            SELECT *
+            FROM tasks
+            WHERE Status IS NULL OR Status != ?
+        """
+        cursor.execute(sql_opdracht, ("Done",))
+        return cursor.fetchall()
 
 def get_task_by_id(task_id):
     sql_opdracht = "SELECT * FROM tasks WHERE Id = ?"
